@@ -59,6 +59,10 @@ class Crawler():
                         print(defragmented)
         return links
 
+    # TODO 解析页面内容
+    async def parse_content(self, resp):
+        pass
+
 
     async def fetch(self, url):
         tries = 0
