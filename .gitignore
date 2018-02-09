@@ -126,3 +126,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# exclud
+!config.py
