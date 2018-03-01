@@ -9,12 +9,13 @@ headers = {
 }
 
 async def login():
+    #TODO 从配置文件读账号密码
     payload = {
         'client_id': '0ab215a8b1977939201640fa14c66bab',
         'grant_type': 'password',
         'client_secret': '22b2cf86ccc81009',
-        'password': 'Change0808',
-        'username': 'yuzhi1777@gmail.com'}
+        'password': '*',
+        'username': '*'}
 
     async with aiohttp.ClientSession() as session:
         #拿调用api的token

@@ -128,4 +128,5 @@ ENV/
 .mypy_cache/
 
 # exclud
-!config.py
+config.py
+.idea/
