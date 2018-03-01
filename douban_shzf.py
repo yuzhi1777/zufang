@@ -110,3 +110,6 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     crawler = Crawler(roots=roots, loop=loop)
     loop.run_until_complete(crawler.crawl())
+
+
+url = 'frodo.douban.com/api/v2/group/146409/topics?count=100&start=0&apikey=0ab215a8b1977939201640fa14c66bab'
