@@ -30,7 +30,7 @@ async def login():
 
 #TODO
 # 1.遍历近一个个月的数据10000条左右
-# 2.topics整合进es进行搜索
+# 2.topics整合进elasticsearch进行搜索
 
 
 loop = asyncio.get_event_loop()
