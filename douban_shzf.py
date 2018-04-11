@@ -1,44 +1,43 @@
 import asyncio
 import aiohttp
 import time
-from lxml import html
 import re
 import urllib
 from urllib.parse import urlparse
+from config import USERNAME, PASSWORD
+from model import Topic
 
 class Crawler():
-    def __init__(self, roots, loop=None):
+    def __init__(self, loop=None):
         self.loop = loop or asyncio.get_event_loop()
-        self.roots = roots
+        self.root = 'https://frodo.douban.com/api/v2/group/146409/topics?count=100&start={offset}'
         self.seen_urls = set()
         self.done = []
         self.q = asyncio.Queue(loop=self.loop)
         self.session = aiohttp.ClientSession(loop=self.loop)
-        for root in roots:
-            self.add_url(root)
+        self.headers = {'User-Agent': 'api-client/0.1.3 com.douban.frodo/5.20.0 iOS/11.2.5 iPhone8,4 network/wifi'}
 
         self.t0 = time.time()
         self.t1 = None
+        self.count = 0
+
+        self.topic = Topic()
+
+    async def token(self):
+        login_url = 'https://frodo.douban.com/service/auth2/token'
+        payload = {
+            'client_id': '0ab215a8b1977939201640fa14c66bab',
+            'grant_type': 'password',
+            'client_secret': '22b2cf86ccc81009',
+            'username': USERNAME,
+            'password': PASSWORD}
+        async with self.session.post(url=login_url, headers=self.headers, data=payload) as r:
+            json_body = await r.json()
+            self.headers['Authorization'] = 'Bearer ' + json_body['access_token']
 
     def add_url(self, url):
         self.seen_urls.add(url)
         self.q.put_nowait(url)
-
-    # def split_url(self, url):
-    #     return urlparse(url).path.split('/')
-    #
-    # def url_allowed(self, url):
-    #     if self.exclude and re.search(self.exclude, url):
-    #         return False
-    #     parts = urllib.parse.urlparse(url)
-    #     if parts.scheme not in ('http', 'https'):
-    #         print('skipping non-http scheme in %r', url)
-    #         return False
-    #     host, port = urllib.parse.splitport(parts.netloc)
-    #     if not self.host_okay(host):
-    #         print('skipping non-root host in %r', url)
-    #         return False
-    #     return True
 
     async def parse_links(self, resp):
         links = set()
@@ -60,15 +59,24 @@ class Crawler():
         return links
 
     # TODO 解析页面内容
-    async def parse_content(self, resp):
-        pass
-
+    async def parse_josn(self, resp):
+        topics = await resp.json()
+        print(topics['count'])
+        print(topics['start'])
+        for topic in topics['topics']:
+            self.topic.update_time = topic['update_time']
+            self.topic.title = topic['title']
+            self.topic.url = topic['url']
+            self.topic.create_time = topic['create_time']
+            self.topic.comments_count = topic['comments_count']
+            self.topic.meta.id = topic['id']
+            self.topic.save()
 
     async def fetch(self, url):
         tries = 0
         while tries < 5:
             try:
-                resp = await self.session.get(url, allow_redirects=False)
+                resp = await self.session.get(url=url, headers=self.headers, allow_redirects=False)
                 break
             except aiohttp.ClientError as client_error:
                 print(client_error)
@@ -78,10 +86,11 @@ class Crawler():
             print('超过尝试次数')
 
         try:
-            links = await self.parse_links(resp)
-            for link in links.difference(self.seen_urls):
-                self.q.put_nowait(link)
-            self.seen_urls.update(links)
+            await self.parse_josn(resp)
+            # links = await self.parse_json(resp)
+            # for link in links.difference(self.seen_urls):
+            #     self.q.put_nowait(link)
+            # self.seen_urls.update(links)
 
         finally:
             await resp.release()
@@ -97,6 +106,9 @@ class Crawler():
             pass
 
     async def crawl(self):
+        await self.token()
+        for offset in range(10):
+            self.add_url(self.root.format(offset=offset*100))
         workers = [asyncio.Task(self.work(), loop=self.loop) for _ in range(5)]
         self.t0 = time.time()
         await self.q.join()
@@ -104,12 +116,12 @@ class Crawler():
         for w in workers:
             w.cancel()
 
-
-if __name__ == '__main__':
-    roots = ['https://m.douban.com/group/146409/?start={}'.format(_) for _ in range(25,1000,25)]
+def mian():
     loop = asyncio.get_event_loop()
-    crawler = Crawler(roots=roots, loop=loop)
+    crawler = Crawler()
     loop.run_until_complete(crawler.crawl())
 
+if __name__ == '__main__':
+    mian()
 
-url = 'frodo.douban.com/api/v2/group/146409/topics?count=100&start=0&apikey=0ab215a8b1977939201640fa14c66bab'
+# url = 'frodo.douban.com/api/v2/group/146409/topics?count=100&start=0&apikey=0ab215a8b1977939201640fa14c66bab'
